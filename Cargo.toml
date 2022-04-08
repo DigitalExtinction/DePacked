@@ -1,0 +1,11 @@
+[package]
+name = "depacked"
+version = "0.1.0"
+edition = "2021"
+authors = ["Martin Indra <martin.indra@mgn.cz>"]
+description = "Minimalistic Rust Crate for handling memory packed data to aid CPU caching."
+repository = "https://github.com/DigitalExtinction/DePacked"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+keywords = ["cpu", "cache", "data-locality"]
+categories = ["caching"]

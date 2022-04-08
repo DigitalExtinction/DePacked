@@ -9,3 +9,6 @@ readme = "README.md"
 license = "MIT OR Apache-2.0"
 keywords = ["cpu", "cache", "data-locality"]
 categories = ["caching"]
+
+[dependencies]
+skiplist = "0.4.0"

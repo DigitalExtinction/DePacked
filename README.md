@@ -1,5 +1,28 @@
 # DePacked
 
+## Example
+
+```rust
+use depacked::PackedData;
+
+struct NeedToPack(u32);
+
+fn main() {
+    let mut packed = PackedData::with_max_capacity(1000);
+
+    // Insertin is fast but not as CPU cache friendly.
+    let first_item = packed.insert(NeedToPack(0));
+    let second_item = packed.insert(NeedToPack(1));
+
+    // Getting (mutable) references is fast and CPU cache friendly.
+    let first_ref = packed.get(first_item);
+    let second_ref_mut = packed.get_mut(second_item);
+
+    // Removing might be slower.
+    let first = packed.remove(first_item);
+}
+```
+
 ## License
 
 DePacked is free and open source! All code in this repository is dual-licensed

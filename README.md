@@ -1,5 +1,8 @@
 # DePacked
 
+[![crates.io](https://img.shields.io/crates/v/depacked.svg)](https://crates.io/crates/depacked)
+[![crates.io](https://img.shields.io/crates/d/depacked.svg)](https://crates.io/crates/depacked)
+
 ## Example
 
 ```rust

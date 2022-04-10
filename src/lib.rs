@@ -54,6 +54,10 @@ impl<T> PackedData<T> {
         self.data.len() - self.holes.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
     /// Inserts an item to first free spot in the underlying memory and returns
     /// ID of the item.
     ///

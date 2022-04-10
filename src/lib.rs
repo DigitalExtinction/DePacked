@@ -1,5 +1,5 @@
 use skiplist::OrderedSkipList;
-use std::marker::PhantomData;
+use std::{fmt, marker::PhantomData};
 
 /// A growable container for data.
 ///
@@ -163,7 +163,7 @@ impl<T> PackedData<T> {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Eq)]
 pub struct Item<T> {
     index: usize,
     generation: u32,
@@ -183,6 +183,21 @@ impl<T> Clone for Item<T> {
 }
 
 impl<T> Copy for Item<T> {}
+
+impl<T> PartialEq for Item<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.index == other.index && self.generation == other.generation
+    }
+}
+
+impl<T> fmt::Debug for Item<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Item")
+            .field("index", &self.index)
+            .field("generation", &self.generation)
+            .finish()
+    }
+}
 
 enum Slot<T> {
     Empty(u32),
@@ -251,6 +266,16 @@ mod tests {
             assert_eq!(packed.len(), num_numbers - i - 1);
             assert_eq!(packed.capacity(), initial_capacity);
         }
+    }
+
+    #[test]
+    fn test_eq() {
+        struct Something(u32);
+        let mut packed = PackedData::with_max_capacity(2);
+        let item_a = packed.insert(Something(1));
+        let item_b = packed.insert(Something(1));
+        assert_eq!(item_a, item_a);
+        assert_ne!(item_a, item_b);
     }
 
     #[test]

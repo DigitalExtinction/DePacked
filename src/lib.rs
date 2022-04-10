@@ -1,4 +1,5 @@
 use skiplist::OrderedSkipList;
+use std::marker::PhantomData;
 
 /// A growable container for data.
 ///
@@ -64,13 +65,17 @@ impl<T> PackedData<T> {
     /// # Arguments
     ///
     /// * `item` - item to be inserted.
-    pub fn insert(&mut self, item: T) -> Item {
+    pub fn insert(&mut self, item: T) -> Item<T> {
         match self.holes.pop_front() {
             Some(index) => {
                 let slot = Slot::used(self.data[index].generation(), item);
                 let generation = slot.generation();
                 self.data[index] = slot;
-                Item { index, generation }
+                Item {
+                    index,
+                    generation,
+                    _marker: PhantomData,
+                }
             }
             None => {
                 let index = self.data.len();
@@ -78,6 +83,7 @@ impl<T> PackedData<T> {
                 Item {
                     generation: 0,
                     index,
+                    _marker: PhantomData,
                 }
             }
         }
@@ -93,7 +99,7 @@ impl<T> PackedData<T> {
     /// # Panics
     ///
     /// Panics if such an item is not stored.
-    pub fn remove(&mut self, item: Item) -> T {
+    pub fn remove(&mut self, item: Item<T>) -> T {
         let mut old = Slot::empty(self.data[item.index].generation() + 1);
         std::mem::swap(&mut old, &mut self.data[item.index]);
         self.holes.insert(item.index);
@@ -117,7 +123,7 @@ impl<T> PackedData<T> {
     /// # Panics
     ///
     /// Panics if such an item is not stored.
-    pub fn get(&self, item: Item) -> &T {
+    pub fn get(&self, item: Item<T>) -> &T {
         match self.data.get(item.index) {
             Some(slot) => match slot {
                 Slot::Used((generation, inner_item)) => {
@@ -141,7 +147,7 @@ impl<T> PackedData<T> {
     /// # Panics
     ///
     /// Panics if such an item is not stored.
-    pub fn get_mut(&mut self, item: Item) -> &mut T {
+    pub fn get_mut(&mut self, item: Item<T>) -> &mut T {
         match self.data.get_mut(item.index) {
             Some(slot) => match slot {
                 Slot::Used((generation, inner_item)) => {
@@ -157,11 +163,26 @@ impl<T> PackedData<T> {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub struct Item {
+#[derive(PartialEq, Eq, Debug)]
+pub struct Item<T> {
     index: usize,
     generation: u32,
+    _marker: PhantomData<T>,
 }
+
+// derive(Clone, Copy) doesn't work because of this
+// https://github.com/rust-lang/rust/issues/26925
+impl<T> Clone for Item<T> {
+    fn clone(&self) -> Self {
+        Self {
+            index: self.index,
+            generation: self.generation,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T> Copy for Item<T> {}
 
 enum Slot<T> {
     Empty(u32),
@@ -198,7 +219,7 @@ mod tests {
         let num_numbers = 100;
         let mut packed = PackedData::with_max_capacity(num_numbers * 2);
 
-        let mut items: Vec<Item> = Vec::new();
+        let mut items: Vec<Item<Number>> = Vec::new();
         for number in 0..num_numbers {
             items.push(packed.insert(Number {
                 number: (number as u32) + 1,

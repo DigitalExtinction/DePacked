@@ -1,5 +1,5 @@
 use skiplist::OrderedSkipList;
-use std::{fmt, marker::PhantomData};
+use std::{fmt, marker::PhantomData, num::NonZeroU32};
 
 /// A growable container for data.
 ///
@@ -79,9 +79,10 @@ impl<T> PackedData<T> {
             }
             None => {
                 let index = self.data.len();
-                self.data.push(Slot::used(0, item));
+                let generation = unsafe { NonZeroU32::new_unchecked(1) };
+                self.data.push(Slot::used(generation, item));
                 Item {
-                    generation: 0,
+                    generation: generation,
                     index,
                     _marker: PhantomData,
                 }
@@ -100,11 +101,16 @@ impl<T> PackedData<T> {
     ///
     /// Panics if such an item is not stored.
     pub fn remove(&mut self, item: Item<T>) -> T {
-        let mut old = Slot::empty(self.data[item.index].generation() + 1);
+        let generation = self.data[item.index]
+            .generation()
+            .get()
+            .checked_add(1)
+            .unwrap_or(1);
+        let mut old = Slot::empty(unsafe { NonZeroU32::new_unchecked(generation) });
         std::mem::swap(&mut old, &mut self.data[item.index]);
         self.holes.insert(item.index);
         match old {
-            Slot::Used((generation, inner_item)) => {
+            Slot::Used(generation, inner_item) => {
                 if generation != item.generation {
                     panic!("The item is not stored!");
                 }
@@ -126,7 +132,7 @@ impl<T> PackedData<T> {
     pub fn get(&self, item: Item<T>) -> &T {
         match self.data.get(item.index) {
             Some(slot) => match slot {
-                Slot::Used((generation, inner_item)) => {
+                Slot::Used(generation, inner_item) => {
                     if *generation != item.generation {
                         panic!("The item is not stored!");
                     }
@@ -150,7 +156,7 @@ impl<T> PackedData<T> {
     pub fn get_mut(&mut self, item: Item<T>) -> &mut T {
         match self.data.get_mut(item.index) {
             Some(slot) => match slot {
-                Slot::Used((generation, inner_item)) => {
+                Slot::Used(generation, inner_item) => {
                     if *generation != item.generation {
                         panic!("The item is not stored!");
                     }
@@ -166,7 +172,7 @@ impl<T> PackedData<T> {
 #[derive(Eq)]
 pub struct Item<T> {
     index: usize,
-    generation: u32,
+    generation: NonZeroU32,
     _marker: PhantomData<T>,
 }
 
@@ -200,23 +206,23 @@ impl<T> fmt::Debug for Item<T> {
 }
 
 enum Slot<T> {
-    Empty(u32),
-    Used((u32, T)),
+    Empty(NonZeroU32),
+    Used(NonZeroU32, T),
 }
 
 impl<T> Slot<T> {
-    fn used(generation: u32, item: T) -> Self {
-        Self::Used((generation, item))
+    fn used(generation: NonZeroU32, item: T) -> Self {
+        Self::Used(generation, item)
     }
 
-    fn empty(generation: u32) -> Self {
+    fn empty(generation: NonZeroU32) -> Self {
         Self::Empty(generation)
     }
 
-    fn generation(&self) -> u32 {
+    fn generation(&self) -> NonZeroU32 {
         match self {
             Self::Empty(generation) => *generation,
-            Self::Used((generation, _)) => *generation,
+            Self::Used(generation, _) => *generation,
         }
     }
 }
@@ -332,5 +338,10 @@ mod tests {
         packed.remove(item);
         packed.insert(Something(3));
         packed.get_mut(item);
+    }
+
+    #[test]
+    fn test_size() {
+        assert_eq!(std::mem::size_of::<Slot<u64>>(), 16);
     }
 }

@@ -1,4 +1,6 @@
 use skiplist::OrderedSkipList;
+#[cfg(not(debug_assertions))]
+use std::hint::unreachable_unchecked;
 use std::{fmt, marker::PhantomData, num::NonZeroU32};
 
 /// A growable container for data.
@@ -82,7 +84,7 @@ impl<T> PackedData<T> {
                 let generation = unsafe { NonZeroU32::new_unchecked(1) };
                 self.data.push(Slot::used(generation, item));
                 Item {
-                    generation: generation,
+                    generation,
                     index,
                     _marker: PhantomData,
                 }
@@ -144,6 +146,29 @@ impl<T> PackedData<T> {
         }
     }
 
+    /// Returns a reference to an item without any safety checks.
+    ///
+    /// # Arguments
+    ///
+    /// * `item` - ID of the item to be retrieved.
+    ///
+    /// # Safety
+    ///
+    /// `item` has to be stored.
+    #[inline]
+    pub unsafe fn get_unchecked(&self, item: Item<T>) -> &T {
+        #[cfg(debug_assertions)]
+        {
+            self.get(item)
+        }
+
+        #[cfg(not(debug_assertions))]
+        match self.data.get_unchecked(item.index) {
+            Slot::Used(_, inner_item) => inner_item,
+            Slot::Empty(_) => unreachable_unchecked(),
+        }
+    }
+
     /// Returns a mutable reference to an item.
     ///
     /// # Arguments
@@ -165,6 +190,29 @@ impl<T> PackedData<T> {
                 Slot::Empty(_) => panic!("The item is not stored!"),
             },
             None => panic!("The item is not stored!"),
+        }
+    }
+
+    /// Returns a mutable reference to an item.
+    ///
+    /// # Arguments
+    ///
+    /// * `item` - ID of the item to be retrieved.
+    ///
+    /// # Safety
+    ///
+    /// `item` has to be stored.
+    #[inline]
+    pub unsafe fn get_unchecked_mut(&mut self, item: Item<T>) -> &mut T {
+        #[cfg(debug_assertions)]
+        {
+            self.get_mut(item)
+        }
+
+        #[cfg(not(debug_assertions))]
+        match self.data.get_unchecked_mut(item.index) {
+            Slot::Used(_, inner_item) => inner_item,
+            Slot::Empty(_) => unreachable_unchecked(),
         }
     }
 }
@@ -272,6 +320,27 @@ mod tests {
             assert_eq!(packed.len(), num_numbers - i - 1);
             assert_eq!(packed.capacity(), initial_capacity);
         }
+    }
+
+    #[test]
+    fn test_get_unsafe() {
+        struct Data {
+            value: u64,
+        }
+
+        let mut packed = PackedData::with_max_capacity(100);
+        let a = packed.insert(Data { value: 1 });
+        let b = packed.insert(Data { value: 2 });
+        let c = packed.insert(Data { value: 3 });
+
+        assert_eq!(packed.get(a).value, 1);
+        assert_eq!(packed.get(b).value, 2);
+        assert_eq!(packed.get(c).value, 3);
+
+        packed.get_mut(b).value = 8;
+        assert_eq!(packed.get(a).value, 1);
+        assert_eq!(packed.get(b).value, 8);
+        assert_eq!(packed.get(c).value, 3);
     }
 
     #[test]

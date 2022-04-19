@@ -1,6 +1,6 @@
 [package]
 name = "depacked"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 authors = ["Martin Indra <martin.indra@mgn.cz>"]
 description = "Minimalistic Rust Crate for handling memory packed data to aid CPU caching."

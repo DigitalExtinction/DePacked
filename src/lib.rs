@@ -84,7 +84,7 @@ impl<T> PackedData<T> {
                 let generation = unsafe { NonZeroU32::new_unchecked(1) };
                 self.data.push(Slot::used(generation, item));
                 Item {
-                    generation: generation,
+                    generation,
                     index,
                     _marker: PhantomData,
                 }
